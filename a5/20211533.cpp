@@ -58,23 +58,30 @@ int main() {
 
     fin.close();
 
+    // vector<pair<아파트수, 최고가아파트>> cities
     std::vector<std::pair<int, int>> cities;
+    // vector<도시 번호> visited (index=아파트 번호)
     std::vector<int> visited = dfs(graph_matrix, N, cities);
 
+    // 아파트수와 최고가아파트가 가장 큰 index 찾기
     int city = find_most_apt_city(cities);
 
     int city_apt_num = cities[city].first;
     int city_apt_largest = cities[city].second;
 
+    // city에 해당하는 아파트의 edge들을 찾고 정렬하여 반환
+    // vector<pair<이동시간, pair<출발 아파트, 도착 아파트>>>
     std::vector<std::pair<int, std::pair<int, int>>> edges = find_and_sort_edge(graph_matrix, visited, city);
+
+    // kruskal 알고리즘으로 mst 구성
     int mst_weight = kruskal(city_apt_largest, edges);
 
     int city_size = cities.size();
     int edge_size = edges.size();
 
-    std::cout << city_size << std::endl;
-    std::cout << city_apt_num << " " << edge_size << " " << city_apt_largest + 1 << std::endl;
-    std::cout << mst_weight << std::endl;
+    std::cout << city_size << "\n";
+    std::cout << city_apt_num << " " << edge_size << " " << city_apt_largest + 1 << "\n";
+    std::cout << mst_weight << "\n";
 
     return 0;
 }
@@ -91,33 +98,50 @@ void add_edges(std::ifstream& fin, std::vector<std::vector<int>>& adj_matrix, in
     }
 }
 
+/**
+ * @brief graph에 대하여 DFS를 수행한 후 도시 정보를 갱신하고 각 아파트가 속하는 도시에 관한 정보를 반환한다.
+ * 
+ * @param graph 그래프
+ * @param num_vertices V 
+ * @param cities vector<pair<아파트수, 최고가아파트>> cities
+ * @return std::vector<int> vector<도시 번호> visited (index=아파트 번호)
+ */
 std::vector<int> dfs(std::vector<std::vector<int>> graph, int num_vertices, std::vector<std::pair<int, int>>& cities) {
 
     stackPointer stack = init_stack(MAX_STACK_SIZE);
 
     std::vector<int> visited(num_vertices, -1);
 
+    // 모든 vertex에 대하여
     for (int i = 0; i < num_vertices; i++) {
 
+        // 이미 방문한 vertex이면 건너뛰기
         if (visited[i] >= 0) {
             continue;
         }
 
+        // 새로운 도시
         cities.push_back({ 0, 0 });
         push(stack, i);
 
         while (!is_blank(stack)) {
 
+            // stack에서 pop
             int apt = pop(stack);
+
+            // 이미 방문한 vertex이면 건너뛰기
             if (visited[apt] >= 0) continue;
 
+            // 현재 vertex에 도시 할당
             visited[apt] = cities.size() - 1;
 
+            // 도시 정보 갱신
             cities[cities.size() - 1].first++;
             cities[cities.size() - 1].second = std::max(cities[cities.size() - 1].second, apt);
 
             for (int j = 0; j < num_vertices; j++) {
 
+                // 방문 가능한 모든 vertex를 stack에 추가
                 if (graph[apt][j] > 0 || graph[j][apt] > 0) {
                     push(stack, j);
                 }
@@ -153,6 +177,13 @@ void free_stack(stackPointer stack) {
     delete stack;
 }
 
+/**
+ * @brief 아파트 수와 최고가 아파트가 최댓값인 city의 index를 반환한다.
+ * 
+ * @param cities vector<pair<아파트수, 최고가아파트>> cities
+ * @return int (아파트 수, 최고가 아파트)가 max인 city의 index
+ */
+
 int find_most_apt_city(std::vector<std::pair<int, int>> cities) {
 
     int most_apt_city = 0;
@@ -170,6 +201,15 @@ int find_most_apt_city(std::vector<std::pair<int, int>> cities) {
     return most_apt_city;
 
 }
+
+/**
+ * @brief 주어진 도시의 아파트들의 간선을 추출한 뒤 정렬하여 반환한다.
+ * 
+ * @param graph 그래프
+ * @param visited 각 아파트의 도시 정보
+ * @param city 추출할 도시
+ * @return std::vector<std::pair<int, std::pair<int, int>>> vector<pair<이동시간, pair<출발 아파트, 도착 아파트>>>
+ */
 std::vector<std::pair<int, std::pair<int, int>>> find_and_sort_edge(std::vector<std::vector<int>> graph, std::vector<int> visited, int city) {
 
     std::vector<std::pair<int, std::pair<int, int>>> edges;
@@ -192,15 +232,32 @@ std::vector<std::pair<int, std::pair<int, int>>> find_and_sort_edge(std::vector<
 
     }
 
+    sort(edges.begin(), edges.end());
+
     return edges;
 
 }
 
+/**
+ * @brief set x와 set y를 union 한다.
+ * 
+ * @param set disjoint set vector (ref)
+ * @param x set x
+ * @param y set y
+ */
 void uni(std::vector<int>& set, int x, int y) {
     x = find(set, x);
     y = find(set, y);
     set[y] = x;
 }
+
+/**
+ * @brief x의 parent를 검색하고 검색 중 발견한 모든 element에 대해 set을 일치시킨다.
+ * 
+ * @param set disjoint set vector (ref)
+ * @param x element to search
+ * @return int set number of x
+ */
 int find(std::vector<int>& set, int x) {
     if (set[x] == x) {
         return x;
@@ -209,6 +266,14 @@ int find(std::vector<int>& set, int x) {
         return set[x] = find(set, set[x]);
     }
 }
+
+/**
+ * @brief kruskal 알고리즘에 의해 mst를 구성하고 weight를 반환한다.
+ * 
+ * @param city_apt_largest 최고가 아파트
+ * @param edges 간선 정보들
+ * @return int weight
+ */
 int kruskal(int city_apt_largest, std::vector<std::pair<int, std::pair<int, int>>> edges) {
 
     std::vector<int> set(city_apt_largest+1);
@@ -216,20 +281,21 @@ int kruskal(int city_apt_largest, std::vector<std::pair<int, std::pair<int, int>
         set[i] = i;
     }
 
-    sort(edges.begin(), edges.end());
-
     int mst_weight = 0;
 
     int s = edges.size();
 
+    // 가중치가 작은 간선부터 모든 간선에 대하여
     for (int i = 0; i < s; i++) {
 
         int w = edges[i].first;
         int s = edges[i].second.first;
         int e = edges[i].second.second;
 
+        // set이 동일하면 사이클을 형성하므로 건너뛰기
         if (find(set, s) == find(set, e)) continue;
 
+        // set이 다르면 해당 간선을 선택하고 set 갱신
         uni(set, s, e);
 
         mst_weight += w;
